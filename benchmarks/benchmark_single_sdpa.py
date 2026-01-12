@@ -1134,11 +1134,17 @@ for i in range(total_iters):
         or "(anonymous namespace)::" in item.key
         or item.key.startswith("fmha_")
     ]
+    fwd_time = 0.0
     if len(matched_kernels) >= 1:
         fwd_time = sum(item.device_time for item in matched_kernels) / 1000
     if i >= dry_run_iters:
         forward_times.append(fwd_time)
 
+    # print kernels
+    if args.verbose:
+        print("\n[DEBUG] Torch Profiler Kernel Breakdown:")
+        for item in matched_kernels:
+            print(f"  {item.key}: {item.device_time/1000:.3f} ms ({item.count} calls)")
     # Sleep for some time proportional to fwd_time for stable measurements
     sleep_time = np.min([fwd_time / 100, 1.0])
     time.sleep(sleep_time)
@@ -1179,10 +1185,17 @@ for i in range(total_iters):
             or "(anonymous namespace)::" in item.key
             or item.key.startswith("fmha_")
         ]
+        bwd_time = 0.0
         if len(matched_kernels) >= 1:
             bwd_time = sum(item.device_time for item in matched_kernels) / 1000
         if i >= dry_run_iters:
             backward_times.append(bwd_time)
+
+        # print kernels
+        if args.verbose:
+            print("\n[DEBUG] Torch Profiler Kernel Breakdown:")
+            for item in matched_kernels:
+                print(f"  {item.key}: {item.device_time/1000:.3f} ms ({item.count} calls)")
 
         sleep_time = np.min([bwd_time / 100, 1.0])
         time.sleep(sleep_time)
