@@ -68,7 +68,6 @@ def generate_kernel_arguments(
         device,
         is_cudnn = False,
     ):
-    assert not deterministic, "deterministic not supported for FA4 now"
     q = torch.randn(batch_size, seqlen_q, nheads, headdim, device=device, dtype=dtype_gen, requires_grad=has_backward)
     k = torch.randn(batch_size, seqlen, nheads_kv, headdim, device=device, dtype=dtype_gen, requires_grad=has_backward)
     v = torch.randn(batch_size, seqlen, nheads_kv, headdim_v, device=device, dtype=dtype_gen, requires_grad=has_backward)
@@ -94,6 +93,7 @@ def generate_kernel_arguments(
             cu_seqlens_k=cu_seqlens_k if varlen else None,
             max_seqlen_q=seqlen_q if varlen else None, # FA4
             max_seqlen_k=seqlen if varlen else None, # FA4
+            deterministic=deterministic
         )
     else:
         return testing.JitArguments(
@@ -511,7 +511,7 @@ def benchmark_attn(
 
         fwd_flop = flops(batch_size, nheads, seqlen_q, seqlen, headdim if not has_qv else headdim + headdim_v, headdim_v, causal=causal, window_size=window_size)
         fwd_mem_size = mem_size_fwd(batch_size, nheads, nheads_kv, seqlen_q, seqlen, headdim, headdim_v)
-        has_backward = has_backward and not varlen
+        has_backward = has_backward
         if has_backward:
             bwd_mem_size = mem_size_bwd(batch_size, nheads, nheads_kv, seqlen_q, seqlen, headdim, headdim_v)
 
@@ -629,8 +629,8 @@ def sweep(output_file_name, run_fa4, run_cudnn):
             [(None, None)],
             [True],
             [8],
-            [False],
-            [False],
+            [True],
+            [False, True],
         ):
             nheads_kv = nheads // gqa
             benchmark_attn(
